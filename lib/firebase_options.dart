@@ -45,7 +45,7 @@ class DefaultFirebaseOptions {
     apiKey: 'AIzaSyATzOOBRvluWcm5NIU1xjmGJGVzDOmWMc8',
     appId: '1:983590890441:android:d6e2ba96326ee99aff5618',
     messagingSenderId: '983590890441',
-    projectId: 'polleria-don-pollo',
-    databaseURL: 'https://polleria-don-pollo-default-rtdb.firebaseio.com',
+    projectId: 'polleria-don-pollo-91bb3',
+    databaseURL: 'https://polleria-don-pollo-91bb3-default-rtdb.firebaseio.com/',
   );
 }
