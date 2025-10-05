@@ -22,6 +22,10 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
   String _editingId = '';
   String _busqueda = '';
 
+  // Filtros avanzados
+  String _filtroCategoria = 'Todas';
+  String _ordenamiento = 'razon_asc';
+
   final List<String> _categorias = [
     'Carnes',
     'Verduras',
@@ -49,6 +53,147 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  void _mostrarFiltrosAvanzados() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filtros Avanzados',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  
+                  // Filtro por categoría
+                  const Text('Categoría:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  DropdownButtonFormField<String>(
+                    value: _filtroCategoria,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: ['Todas', ..._categorias].map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        setState(() {
+                          _filtroCategoria = value ?? 'Todas';
+                        });
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Ordenamiento
+                  const Text('Ordenar por:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  DropdownButtonFormField<String>(
+                    value: _ordenamiento,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'razon_asc', child: Text('Razón Social (A-Z)')),
+                      DropdownMenuItem(value: 'razon_desc', child: Text('Razón Social (Z-A)')),
+                      DropdownMenuItem(value: 'categoria_asc', child: Text('Categoría (A-Z)')),
+                    ],
+                    onChanged: (value) {
+                      setModalState(() {
+                        setState(() {
+                          _ordenamiento = value ?? 'razon_asc';
+                        });
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Botones
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _filtroCategoria = 'Todas';
+                              _ordenamiento = 'razon_asc';
+                            });
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                          ),
+                          child: const Text('Limpiar filtros'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange[700],
+                          ),
+                          child: const Text('Aplicar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  List<MapEntry> _aplicarFiltrosYOrdenamiento(List<MapEntry> listaProveedores) {
+    // Aplicar filtros
+    listaProveedores = listaProveedores.where((entry) {
+      bool cumpleCategoria = _filtroCategoria == 'Todas' || 
+                             entry.value['categoria'] == _filtroCategoria;
+      
+      bool cumpleBusqueda = _busqueda.isEmpty ||
+                           entry.value['razonSocial'].toString().toLowerCase().contains(_busqueda) ||
+                           entry.value['ruc'].toString().contains(_busqueda);
+      
+      return cumpleCategoria && cumpleBusqueda;
+    }).toList();
+
+    // Aplicar ordenamiento
+    listaProveedores.sort((a, b) {
+      switch (_ordenamiento) {
+        case 'razon_asc':
+          return a.value['razonSocial'].toString().compareTo(b.value['razonSocial'].toString());
+        case 'razon_desc':
+          return b.value['razonSocial'].toString().compareTo(a.value['razonSocial'].toString());
+        case 'categoria_asc':
+          return a.value['categoria'].toString().compareTo(b.value['categoria'].toString());
+        default:
+          return 0;
+      }
+    });
+
+    return listaProveedores;
   }
 
   bool _validarEmail(String email) {
@@ -258,25 +403,63 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
             ),
           ),
           
-          // Búsqueda
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _buscarController,
-              decoration: InputDecoration(
-                labelText: 'Buscar por razón social o RUC',
-                prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _busqueda = value.toLowerCase();
-                });
-              },
+          // Búsqueda y Filtros
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _buscarController,
+                    decoration: InputDecoration(
+                      labelText: 'Buscar por razón social o RUC',
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _busqueda = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: _mostrarFiltrosAvanzados,
+                  icon: const Icon(Icons.filter_list),
+                  label: const Text('Filtros'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
+              ],
             ),
           ),
+
+          // Chips de filtros activos
+          if (_filtroCategoria != 'Todas')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  Chip(
+                    label: Text('Categoría: $_filtroCategoria'),
+                    deleteIcon: const Icon(Icons.close, size: 18),
+                    onDeleted: () {
+                      setState(() {
+                        _filtroCategoria = 'Todas';
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
 
           // Lista de proveedores
           Expanded(
@@ -293,13 +476,20 @@ class _ProveedoresScreenState extends State<ProveedoresScreen> {
                 Map<dynamic, dynamic> proveedores = snapshot.data!.snapshot.value as Map;
                 List<MapEntry> listaProveedores = proveedores.entries.toList();
 
-                // Filtrar por búsqueda
-                if (_busqueda.isNotEmpty) {
-                  listaProveedores = listaProveedores.where((entry) {
-                    String razonSocial = entry.value['razonSocial'].toString().toLowerCase();
-                    String ruc = entry.value['ruc'].toString();
-                    return razonSocial.contains(_busqueda) || ruc.contains(_busqueda);
-                  }).toList();
+                // Aplicar filtros y ordenamiento
+                listaProveedores = _aplicarFiltrosYOrdenamiento(listaProveedores);
+
+                if (listaProveedores.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('No se encontraron proveedores con los filtros seleccionados'),
+                      ],
+                    ),
+                  );
                 }
 
                 return ListView.builder(

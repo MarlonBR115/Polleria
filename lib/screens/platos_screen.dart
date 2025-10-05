@@ -20,6 +20,12 @@ class _PlatosScreenState extends State<PlatosScreen> {
   String _editingId = '';
   bool _disponible = true;
   String _busqueda = '';
+  
+  // Variables para filtros avanzados
+  String _filtroCategoria = 'Todas';
+  String _filtroDisponibilidad = 'Todos';
+  String _ordenamiento = 'nombre_asc';
+  bool _vistaLista = true;
 
   final List<String> _categorias = [
     'Pollo a la brasa',
@@ -47,6 +53,181 @@ class _PlatosScreenState extends State<PlatosScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  void _mostrarFiltrosAvanzados() {
+    // Variables temporales para el modal
+    String tempCategoria = _filtroCategoria;
+    String tempDisponibilidad = _filtroDisponibilidad;
+    String tempOrdenamiento = _ordenamiento;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filtros Avanzados',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  
+                  // Filtro por categoría
+                  const Text('Categoría:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  DropdownButtonFormField<String>(
+                    value: tempCategoria,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: ['Todas', ..._categorias].map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        tempCategoria = value ?? 'Todas';
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Filtro por disponibilidad
+                  const Text('Disponibilidad:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  DropdownButtonFormField<String>(
+                    value: tempDisponibilidad,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: ['Todos', 'Disponibles', 'No disponibles'].map((disp) {
+                      return DropdownMenuItem(value: disp, child: Text(disp));
+                    }).toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        tempDisponibilidad = value ?? 'Todos';
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Ordenamiento
+                  const Text('Ordenar por:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  DropdownButtonFormField<String>(
+                    value: tempOrdenamiento,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'nombre_asc', child: Text('Nombre (A-Z)')),
+                      DropdownMenuItem(value: 'nombre_desc', child: Text('Nombre (Z-A)')),
+                      DropdownMenuItem(value: 'precio_asc', child: Text('Precio (menor a mayor)')),
+                      DropdownMenuItem(value: 'precio_desc', child: Text('Precio (mayor a menor)')),
+                    ],
+                    onChanged: (value) {
+                      setModalState(() {
+                        tempOrdenamiento = value ?? 'nombre_asc';
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Botones
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            setState(() {
+                              _filtroCategoria = 'Todas';
+                              _filtroDisponibilidad = 'Todos';
+                              _ordenamiento = 'nombre_asc';
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                          ),
+                          child: const Text('Limpiar filtros'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            setState(() {
+                              _filtroCategoria = tempCategoria;
+                              _filtroDisponibilidad = tempDisponibilidad;
+                              _ordenamiento = tempOrdenamiento;
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange[700],
+                          ),
+                          child: const Text('Aplicar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  List<MapEntry> _aplicarFiltrosYOrdenamiento(List<MapEntry> listaPlatos) {
+    // Aplicar filtros
+    listaPlatos = listaPlatos.where((entry) {
+      bool cumpleCategoria = _filtroCategoria == 'Todas' || 
+                             entry.value['categoria'] == _filtroCategoria;
+      
+      bool cumpleDisponibilidad = _filtroDisponibilidad == 'Todos' ||
+                                  (_filtroDisponibilidad == 'Disponibles' && entry.value['disponible'] == true) ||
+                                  (_filtroDisponibilidad == 'No disponibles' && entry.value['disponible'] == false);
+      
+      bool cumpleBusqueda = _busqueda.isEmpty ||
+                           entry.value['nombre'].toString().toLowerCase().contains(_busqueda);
+      
+      return cumpleCategoria && cumpleDisponibilidad && cumpleBusqueda;
+    }).toList();
+
+    // Aplicar ordenamiento
+    listaPlatos.sort((a, b) {
+      switch (_ordenamiento) {
+        case 'nombre_asc':
+          return a.value['nombre'].toString().compareTo(b.value['nombre'].toString());
+        case 'nombre_desc':
+          return b.value['nombre'].toString().compareTo(a.value['nombre'].toString());
+        case 'precio_asc':
+          return (a.value['precio'] ?? 0).compareTo(b.value['precio'] ?? 0);
+        case 'precio_desc':
+          return (b.value['precio'] ?? 0).compareTo(a.value['precio'] ?? 0);
+        default:
+          return 0;
+      }
+    });
+
+    return listaPlatos;
   }
 
   Future<void> _guardarPlato() async {
@@ -119,6 +300,17 @@ class _PlatosScreenState extends State<PlatosScreen> {
         title: const Text('Gestión de Platos'),
         backgroundColor: Colors.orange[700],
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(_vistaLista ? Icons.grid_view : Icons.list),
+            onPressed: () {
+              setState(() {
+                _vistaLista = !_vistaLista;
+              });
+            },
+            tooltip: _vistaLista ? 'Vista de tarjetas' : 'Vista de lista',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -224,25 +416,74 @@ class _PlatosScreenState extends State<PlatosScreen> {
             ),
           ),
           
-          // Búsqueda
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              controller: _buscarController,
-              decoration: InputDecoration(
-                labelText: 'Buscar plato',
-                prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _busqueda = value.toLowerCase();
-                });
-              },
+          // Búsqueda y Filtros
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _buscarController,
+                    decoration: InputDecoration(
+                      labelText: 'Buscar plato',
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _busqueda = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: _mostrarFiltrosAvanzados,
+                  icon: const Icon(Icons.filter_list),
+                  label: const Text('Filtros'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  ),
+                ),
+              ],
             ),
           ),
+
+          // Chips de filtros activos
+          if (_filtroCategoria != 'Todas' || _filtroDisponibilidad != 'Todos')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  if (_filtroCategoria != 'Todas')
+                    Chip(
+                      label: Text('Categoría: $_filtroCategoria'),
+                      deleteIcon: const Icon(Icons.close, size: 18),
+                      onDeleted: () {
+                        setState(() {
+                          _filtroCategoria = 'Todas';
+                        });
+                      },
+                    ),
+                  if (_filtroDisponibilidad != 'Todos')
+                    Chip(
+                      label: Text(_filtroDisponibilidad),
+                      deleteIcon: const Icon(Icons.close, size: 18),
+                      onDeleted: () {
+                        setState(() {
+                          _filtroDisponibilidad = 'Todos';
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ),
 
           // Lista de platos
           Expanded(
@@ -259,61 +500,169 @@ class _PlatosScreenState extends State<PlatosScreen> {
                 Map<dynamic, dynamic> platos = snapshot.data!.snapshot.value as Map;
                 List<MapEntry> listaPlatos = platos.entries.toList();
 
-                // Filtrar por búsqueda
-                if (_busqueda.isNotEmpty) {
-                  listaPlatos = listaPlatos.where((entry) {
-                    String nombre = entry.value['nombre'].toString().toLowerCase();
-                    return nombre.contains(_busqueda);
-                  }).toList();
+                // Aplicar filtros y ordenamiento
+                listaPlatos = _aplicarFiltrosYOrdenamiento(listaPlatos);
+
+                if (listaPlatos.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('No se encontraron platos con los filtros seleccionados'),
+                      ],
+                    ),
+                  );
                 }
 
-                return ListView.builder(
-                  itemCount: listaPlatos.length,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemBuilder: (context, index) {
-                    final entry = listaPlatos[index];
-                    final id = entry.key;
-                    final plato = entry.value;
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: plato['disponible'] 
-                              ? Colors.green 
-                              : Colors.red,
-                          child: const Icon(Icons.restaurant, color: Colors.white),
-                        ),
-                        title: Text(
-                          plato['nombre'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(
-                          '${plato['categoria']} | ${plato['tamano'] ?? 'N/A'}\nS/ ${plato['precio'].toStringAsFixed(2)}',
-                        ),
-                        isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () => _cargarParaEditar(id, plato),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _eliminarPlato(id),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
+                return _vistaLista 
+                    ? _buildListaView(listaPlatos)
+                    : _buildGridView(listaPlatos);
               },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildListaView(List<MapEntry> listaPlatos) {
+    return ListView.builder(
+      itemCount: listaPlatos.length,
+      padding: const EdgeInsets.all(16),
+      itemBuilder: (context, index) {
+        final entry = listaPlatos[index];
+        final id = entry.key;
+        final plato = entry.value;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: plato['disponible'] 
+                  ? Colors.green 
+                  : Colors.red,
+              child: const Icon(Icons.restaurant, color: Colors.white),
+            ),
+            title: Text(
+              plato['nombre'],
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              '${plato['categoria']} | ${plato['tamano'] ?? 'N/A'}\nS/ ${plato['precio'].toStringAsFixed(2)}',
+            ),
+            isThreeLine: true,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () => _cargarParaEditar(id, plato),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _eliminarPlato(id),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGridView(List<MapEntry> listaPlatos) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: listaPlatos.length,
+      itemBuilder: (context, index) {
+        final entry = listaPlatos[index];
+        final id = entry.key;
+        final plato = entry.value;
+
+        return Card(
+          elevation: 3,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: plato['disponible'] ? Colors.green[100] : Colors.red[100],
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                  ),
+                  child: Icon(
+                    Icons.restaurant,
+                    size: 60,
+                    color: plato['disponible'] ? Colors.green[700] : Colors.red[700],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      plato['nombre'],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      plato['categoria'],
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'S/ ${plato['precio'].toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[700],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, size: 20),
+                          color: Colors.blue,
+                          onPressed: () => _cargarParaEditar(id, plato),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, size: 20),
+                          color: Colors.red,
+                          onPressed: () => _eliminarPlato(id),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
